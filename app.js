@@ -1,114 +1,82 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f0f0f0;
-}
+document.addEventListener('DOMContentLoaded', function () {
+    const clientId = '061ee52f68e04f21a5f48ff98fa0175d';
+    const clientSecret = '333e60e6f5fe479fb008e31ceed4c275';
+    const apiUrl = 'https://api.spotify.com/v1';
 
-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #24548c;
-    padding: 10px;
-}
+    async function getAccessToken() {
+        const response = await axios.post('https://accounts.spotify.com/api/token', 
+            'grant_type=client_credentials', 
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + btoa('061ee52f68e04f21a5f48ff98fa0175d' + ':' + '333e60e6f5fe479fb008e31ceed4c275')
+                }
+            }
+        );
+        return response.data.access_token;
+    }
 
-.logo {
-    display: inline-flex;
-    width: 70%;
-    object-fit: contain;
-    margin-right: 1000px;
-}
+    function renderResults(results) {
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '';
 
-.logo img {
-    height: 100px;
-    width: auto;
-}
+        if (results.length === 0) {
+            resultsDiv.innerHTML = 'Nenhum resultado encontrado.';
+            return;
+        }
 
-nav {
-    display: flex;
-    align-items: center;
-}
+        results.forEach(item => {
+            const resultItem = document.createElement('div');
+            resultItem.classList.add('result-item');
 
-.nav-list {
-    list-style: none;
-    display: flex;
-}
+            if (item.type === 'artist') {
+                resultItem.innerHTML = `
+                    <img src="${item.images[0].url}" alt="${item.name}">
+                    <div>
+                        <strong>${item.name}</strong><br>
+                        Artista
+                    </div>
+                `;
+            } else if (item.type === 'track') {
+                resultItem.innerHTML = `
+                    <img src="${item.album.images[0].url}" alt="${item.name}">
+                    <div>
+                        <strong>${item.name}</strong><br>
+                        Música - ${item.artists[0].name}
+                    </div>
+                `;
+            }
 
-.nav-list li {
-    letter-spacing: 3px;
-    margin-left: 32px;
-    color: white;
-}
+            resultsDiv.appendChild(resultItem);
+        });
+    }
 
-#app {
-    max-width: 800px;
-    margin: 20px auto;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: -9px 9px 18px #cccccc,
-    9px -9px 18px #ffffff;
-    text-align: center;
-}
+    window.search = async function () {
+        const searchInput = document.getElementById('searchInput');
+        const query = searchInput.value.trim();
 
-h1 {
-    color: #1DB954;
-}
+        if (query === '') {
+            alert('Por favor, digite um artista ou música para buscar.');
+            return;
+        }
 
-div {
-    margin-bottom: 10px;
-}
+        const accessToken = await getAccessToken();
 
-input {
-    border: none;
-    outline: none;
-    border-radius: 15px;
-    padding: 1em;
-    background-color: #ccc;
-    box-shadow: inset 2px 5px 10px rgba(0,0,0,0.3);
-    transition: 300ms ease-in-out;
-}
+        try {
+            const response = await axios.get(`${apiUrl}/search?q=${query}&type=artist,track`, {
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken
+                }
+            });
 
-input:focus {
-    background-color: white;
-    transform: scale(1.05);
-    box-shadow: 13px 13px 100px #969696,
-               -13px -13px 100px #ffffff;
-  }
+            const artists = response.data.artists.items;
+            const tracks = response.data.tracks.items;
+            
+            const results = [...artists, ...tracks];
 
-button {
-    margin-left: 5px;
-    padding: 5px 10px;
-    height: 40px;
-    background-color: white;
-    color: #1DB954;
-    border: 3px solid #1DB954;
-    cursor: pointer;
-    border-radius: 10px;
-    transition: all 0.3s;
-}
-
-button:hover {
-    background: #1DB954;
-    color: white;
-}
-
-#results {
-    text-align: left;
-}
-
-.result-item {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-}
-
-.result-item img {
-    max-width: 100px;
-    margin-right: 10px;
-    border-radius: 8px;
-}
+            renderResults(results);
+        } catch (error) {
+            console.error('Erro na busca:', error.message);
+        }
+    }
+});
